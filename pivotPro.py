@@ -26,22 +26,19 @@ bpy.types.Scene.PPSettings = bpy.props.CollectionProperty(type=PivotProSettings)
 class SelectedObjects():
     storedSelectedObjects = []
 
-def UpdatePivotPro(self,context):
+def UpdatePivotPro(self,context):  #just when enabling disablig button 'pivotPro'
     if self.pivot_pro_enabled:
-        TempStorage=context.scene.PPSettings.add()
-        TempStorage.activeObject = context.scene.objects.active.name
-        TempStorage.snap_target = context.scene.tool_settings.snap_target
-        TempStorage.pivot_point = context.space_data.pivot_point
+        context.scene.PPSettings.add()
         RegisterHotkeys()
     else:
         UnRegisterHotkeys()
+        context.scene.PPSettings.remove(0)
         disablePivot(context)
-        resetSnapping(context)
 
 bpy.types.Scene.pivot_pro_enabled =  bpy.props.BoolProperty(name="Enable PivotPro", description="Turns on/off pivot", default=False,update=UpdatePivotPro)
 
 
-def enablePivot(context):
+def enablePivot(context): #unhides pivot (or create if dosn't exist)
     try:
         pivot = bpy.data.objects['PivotPro']
     except:
@@ -60,19 +57,17 @@ def enablePivot(context):
     pivot.select = True
     context.scene.objects.active = pivot
 
-def disablePivot(context):
+def disablePivot(context):  #hides pivot but do not deletes it
     pivot = bpy.data.objects['PivotPro']
     pivot.hide_select = True
     pivot.select = False
-    TempStorage = context.scene.PPSettings[0]
-    context.scene.objects.active = bpy.data.objects[TempStorage.activeObject]
     try:
         context.scene.objects.unlink(pivot)
     except:
         pass
 
 
-def createPivot(context):
+def createPivot(context):  #just when enabling addon
     newEmpty = bpy.data.objects.new('PivotPro', None)
     context.scene.objects.link(newEmpty)
     layers = [False]*20
@@ -85,14 +80,22 @@ def createPivot(context):
     context.scene.objects.active = newEmpty
 
 def setSnapping(context):
+    TempStorage = context.scene.PPSettings[0]
+    TempStorage.snap_target = context.scene.tool_settings.snap_target
+    TempStorage.pivot_point = context.space_data.pivot_point
+    TempStorage.activeObject = context.scene.objects.active.name
     context.scene.tool_settings.snap_target = 'ACTIVE'
     context.space_data.pivot_point = 'CURSOR'
+    context.scene.cursor_location = bpy.data.objects['PivotPro'].location
+
 
 def resetSnapping(context):
     TempStorage = context.scene.PPSettings[0]
     context.scene.tool_settings.snap_target = TempStorage.snap_target
     context.space_data.pivot_point = TempStorage.pivot_point
-    context.scene.PPSettings.remove(0)
+    context.scene.objects.active = bpy.data.objects[TempStorage.activeObject]
+    context.scene.cursor_location = bpy.data.objects['PivotPro'].location
+
 
 
 class PivotMacro(bpy.types.Macro):
@@ -106,7 +109,7 @@ class PivotMacro(bpy.types.Macro):
         return context.mode == 'OBJECT'
 
 
-class PivotInit(bpy.types.Operator):
+class PivotInit(bpy.types.Operator):  #sets pivot location after double click (create pivot if first run)
     """Move an object with the mouse, example"""
     bl_idname = "object.pivot_init"
     bl_label = "Ini Pivot"
@@ -126,18 +129,16 @@ class PivotInit(bpy.types.Operator):
             for obj in SelectedObjects.storedSelectedObjects:
                 obj.select = False
 
-            context.space_data.pivot_point = 'CURSOR'
+
             oldPivot = bpy.data.objects.get('PivotPro',None)
             context.scene.tool_settings.use_snap = True
             if oldPivot is not None:
                 enablePivot(context)
                 oldPivot.location = loc
             else:
-                context.scene.tool_settings.use_snap = True
                 createPivot(context)
                 pivot = bpy.data.objects.get('PivotPro',None)  # it exist now after CreatePivot
                 pivot.location = loc   #so put pivot under cursor
-            setSnapping(context)
         return {'FINISHED'}
 
 
@@ -187,8 +188,8 @@ class PivotTransform(bpy.types.Operator):
              return {'PASS_THROUGH'}
 
         if event.type in {'RIGHTMOUSE', 'ESC', 'LEFTMOUSE'}:
-            context.scene.cursor_location = bpy.data.objects['PivotPro'].location
             disablePivot(context)
+            resetSnapping(context)
             return {'FINISHED'}
 
         return {'PASS_THROUGH'}  #was running modal
@@ -228,9 +229,9 @@ def drawPivotRed():
 def addon_button(self, context):
     layout = self.layout
     if bpy.context.scene.pivot_pro_enabled:
-        layout.prop(context.scene,"pivot_pro_enabled",text='Disable PivotPro',icon='OUTLINER_OB_EMPTY')
+        layout.prop(context.scene,"pivot_pro_enabled",text='PivotPro',icon='OUTLINER_OB_EMPTY')
     else:
-        layout.prop(context.scene,"pivot_pro_enabled",text='Enable PivotPro',icon='OUTLINER_OB_EMPTY')
+        layout.prop(context.scene,"pivot_pro_enabled",text='PivotPro',icon='OUTLINER_OB_EMPTY')
 
 
 
@@ -244,15 +245,15 @@ def RegisterHotkeys():
     #kmi.properties.my_prop = 'some'
     addon_keymaps.append((km, kmi))
 
-    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'G', 'PRESS')
+    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'G', 'PRESS',shift=True)
     kmi.properties.operator = "Translate"
     addon_keymaps.append((km, kmi))
 
-    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'R', 'PRESS')
+    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'R', 'PRESS',shift=True)
     kmi.properties.operator = "Rotate"
     addon_keymaps.append((km, kmi))
 
-    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'S', 'PRESS')
+    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'S', 'PRESS',shift=True)
     kmi.properties.operator = "Scale"
     addon_keymaps.append((km, kmi))
 
