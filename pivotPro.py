@@ -1,12 +1,31 @@
+# ##### BEGIN GPL LICENSE BLOCK #####
+#
+#  This program is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU General Public License
+#  as published by the Free Software Foundation; either version 2
+#  of the License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software Foundation,
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ##### END GPL LICENSE BLOCK #####
+
+
 bl_info = {
     "name": "PivotPro",
-    "author": "Your Name Here",
+    "author": "Jose Conseco",
     "version": (1, 0),
     "blender": (2, 75, 0),
     "location": "3D view",
     "description": "Gives ability to snap pivot",
     "warning": "",
-    "wiki_url": "",
+    "wiki_url": "https://github.com/JoseConseco/PivotPro",
     "category": "3D View",
     }
 
@@ -15,10 +34,11 @@ import bpy
 from bpy_extras.view3d_utils import region_2d_to_vector_3d, region_2d_to_location_3d
 import bgl
 
+
 class PivotProSettings(bpy.types.PropertyGroup):  # seems fucked upp
-    activeObject=  bpy.props.StringProperty()
-    snap_target =  bpy.props.StringProperty()
-    pivot_point =  bpy.props.StringProperty()
+    activeObject = bpy.props.StringProperty()
+    snap_target = bpy.props.StringProperty()
+    pivot_point = bpy.props.StringProperty()
 bpy.utils.register_class(PivotProSettings)
 bpy.types.Scene.PPSettings = bpy.props.CollectionProperty(type=PivotProSettings)
 
@@ -26,7 +46,8 @@ bpy.types.Scene.PPSettings = bpy.props.CollectionProperty(type=PivotProSettings)
 class SelectedObjects():
     storedSelectedObjects = []
 
-def UpdatePivotPro(self,context):  #just when enabling disablig button 'pivotPro'
+
+def UpdatePivotPro(self, context):  # just when enabling disablig button 'pivotPro'
     if self.pivot_pro_enabled:
         context.scene.PPSettings.add()
         RegisterHotkeys()
@@ -35,10 +56,11 @@ def UpdatePivotPro(self,context):  #just when enabling disablig button 'pivotPro
         context.scene.PPSettings.remove(0)
         disablePivot(context)
 
-bpy.types.Scene.pivot_pro_enabled =  bpy.props.BoolProperty(name="Enable PivotPro", description="Turns on/off pivot", default=False,update=UpdatePivotPro)
+
+bpy.types.Scene.pivot_pro_enabled = bpy.props.BoolProperty(name="Enable PivotPro", description="Turns on/off pivot", default=False,update=UpdatePivotPro)
 
 
-def enablePivot(context): #unhides pivot (or create if dosn't exist)
+def enablePivot(context):  # unhides pivot (or create if dosn't exist)
     try:
         pivot = bpy.data.objects['PivotPro']
     except:
@@ -48,7 +70,7 @@ def enablePivot(context): #unhides pivot (or create if dosn't exist)
         context.scene.objects.link(pivot)
     except:
         pass
-    pivot = bpy.data.objects['PivotPro']  #now pivot should be created
+    pivot = bpy.data.objects['PivotPro']  # now pivot should be created
     layers = [False]*20
     layers[context.scene.active_layer] = True
     pivot.layers = layers
@@ -57,7 +79,8 @@ def enablePivot(context): #unhides pivot (or create if dosn't exist)
     pivot.select = True
     context.scene.objects.active = pivot
 
-def disablePivot(context):  #hides pivot but do not deletes it
+
+def disablePivot(context):  # hides pivot but do not deletes it
     pivot = bpy.data.objects['PivotPro']
     pivot.hide_select = True
     pivot.select = False
@@ -67,7 +90,7 @@ def disablePivot(context):  #hides pivot but do not deletes it
         pass
 
 
-def createPivot(context):  #just when enabling addon
+def createPivot(context):  # just when enabling addon
     newEmpty = bpy.data.objects.new('PivotPro', None)
     context.scene.objects.link(newEmpty)
     layers = [False]*20
@@ -78,6 +101,7 @@ def createPivot(context):  #just when enabling addon
     bpy.ops.object.select_all(action='DESELECT')
     newEmpty.select = True
     context.scene.objects.active = newEmpty
+
 
 def setSnapping(context):
     TempStorage = context.scene.PPSettings[0]
@@ -97,24 +121,22 @@ def resetSnapping(context):
     context.scene.cursor_location = bpy.data.objects['PivotPro'].location
 
 
-
 class PivotMacro(bpy.types.Macro):
     """Overall macro declaration - knife then delete"""
     bl_idname = "object.pivot_macro"
     bl_label = "Pivot Macro"
-    bl_options = {'REGISTER',"UNDO"}
+    bl_options = {'REGISTER', "UNDO"}
 
     @classmethod
     def poll(cls, context):
         return context.mode == 'OBJECT'
 
 
-class PivotInit(bpy.types.Operator):  #sets pivot location after double click (create pivot if first run)
+class PivotInit(bpy.types.Operator):  # sets pivot location after double click (create pivot if first run)
     """Move an object with the mouse, example"""
     bl_idname = "object.pivot_init"
     bl_label = "Ini Pivot"
-    bl_options = {'REGISTER','UNDO'}
-
+    bl_options = {'REGISTER', 'UNDO'}
 
     def invoke(self, context, event):
         if context.mode == 'OBJECT':
@@ -129,23 +151,22 @@ class PivotInit(bpy.types.Operator):  #sets pivot location after double click (c
             for obj in SelectedObjects.storedSelectedObjects:
                 obj.select = False
 
-
-            oldPivot = bpy.data.objects.get('PivotPro',None)
+            oldPivot = bpy.data.objects.get('PivotPro', None)
             context.scene.tool_settings.use_snap = True
             if oldPivot is not None:
                 enablePivot(context)
                 oldPivot.location = loc
             else:
                 createPivot(context)
-                pivot = bpy.data.objects.get('PivotPro',None)  # it exist now after CreatePivot
-                pivot.location = loc   #so put pivot under cursor
+                pivot = bpy.data.objects.get('PivotPro', None)  # it exist now after CreatePivot
+                pivot.location = loc  # so put pivot under cursor
         return {'FINISHED'}
 
 
 class PivotHide(bpy.types.Operator):
     bl_idname = "object.pivot_hide"
     bl_label = "Hide Pivot"
-    bl_options = {'REGISTER','UNDO'}
+    bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
     def poll(cls, context):
@@ -160,8 +181,6 @@ class PivotHide(bpy.types.Operator):
             context.scene.cursor_location = bpy.data.objects['PivotPro'].location
             disablePivot(context)
         return {'FINISHED'}
-
-
 
 
 class PivotTransform(bpy.types.Operator):
@@ -185,14 +204,14 @@ class PivotTransform(bpy.types.Operator):
                 bpy.ops.transform.resize('INVOKE_DEFAULT')
 
         if event.type in {'X', 'Y', 'Z'}:
-             return {'PASS_THROUGH'}
+            return {'PASS_THROUGH'}
 
         if event.type in {'RIGHTMOUSE', 'ESC', 'LEFTMOUSE'}:
             disablePivot(context)
             resetSnapping(context)
             return {'FINISHED'}
 
-        return {'PASS_THROUGH'}  #was running modal
+        return {'PASS_THROUGH'}  # was running modal
 
     def invoke(self, context, event):
         if bpy.context.scene.pivot_pro_enabled:
@@ -201,19 +220,17 @@ class PivotTransform(bpy.types.Operator):
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
         else:
-            return {'PASS_THROUGH'}  #was CANCELL but broke edit mesh G, R, S
-
-
+            return {'PASS_THROUGH'}  # was CANCELL but broke edit mesh G, R, S
 
 
 def drawPivotRed():
     if bpy.context.scene.pivot_pro_enabled:
-        oldPivot = bpy.data.objects.get('PivotPro',None)
+        oldPivot = bpy.data.objects.get('PivotPro', None)
         if oldPivot is not None:
 
             bgl.glEnable(bgl.GL_BLEND)
 
-            bgl.glColor3f(1,0,0)
+            bgl.glColor3f(1, 0, 0)
             bgl.glPointSize(10)
             bgl.glBegin(bgl.GL_POINTS)
             bgl.glVertex3f(*oldPivot.location)
@@ -229,31 +246,31 @@ def drawPivotRed():
 def addon_button(self, context):
     layout = self.layout
     if bpy.context.scene.pivot_pro_enabled:
-        layout.prop(context.scene,"pivot_pro_enabled",text='PivotPro',icon='OUTLINER_OB_EMPTY')
+        layout.prop(context.scene, "pivot_pro_enabled", text='PivotPro', icon='OUTLINER_OB_EMPTY')
     else:
-        layout.prop(context.scene,"pivot_pro_enabled",text='PivotPro',icon='OUTLINER_OB_EMPTY')
+        layout.prop(context.scene, "pivot_pro_enabled", text='PivotPro', icon='OUTLINER_OB_EMPTY')
 
 
-
-addon_keymaps = [] #put on out of register()
+addon_keymaps = []  # put on out of register()
 handleDrawPivot = []
+
 
 def RegisterHotkeys():
     wm = bpy.context.window_manager
-    km = wm.keyconfigs.addon.keymaps.new(name = 'Object Mode', space_type = 'EMPTY')
+    km = wm.keyconfigs.addon.keymaps.new(name='Object Mode', space_type='EMPTY')
     kmi = km.keymap_items.new(PivotMacro.bl_idname, 'LEFTMOUSE', 'DOUBLE_CLICK')
     #kmi.properties.my_prop = 'some'
     addon_keymaps.append((km, kmi))
 
-    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'G', 'PRESS',shift=True)
+    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'G', 'PRESS', shift=True)
     kmi.properties.operator = "Translate"
     addon_keymaps.append((km, kmi))
 
-    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'R', 'PRESS',shift=True)
+    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'R', 'PRESS', shift=True)
     kmi.properties.operator = "Rotate"
     addon_keymaps.append((km, kmi))
 
-    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'S', 'PRESS',shift=True)
+    kmi = km.keymap_items.new(PivotTransform.bl_idname, 'S', 'PRESS', shift=True)
     kmi.properties.operator = "Scale"
     addon_keymaps.append((km, kmi))
 
@@ -286,8 +303,6 @@ def register():
         #RegisterHotkeys() #if there is no property  pivot_pro_enabled means we run it first time. By default is is disabled
 
 
-
-
 def unregister():
     bpy.utils.unregister_module(__name__)
 
@@ -300,7 +315,6 @@ def unregister():
     bpy.utils.unregister_class(PivotProSettings)
     UnRegisterHotkeys()
 
+
 if __name__ == "__main__":
     register()
-
-
